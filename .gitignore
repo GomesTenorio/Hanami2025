@@ -205,3 +205,11 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# App-specific generated artifacts
+uploads/
+exports/
+logs/
+
+# Optional: local datasets (se você guardar csv/xlsx localmente)
+data/
