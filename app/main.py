@@ -1,6 +1,14 @@
+import os
 from fastapi import FastAPI
-from app.api.routes.upload import router as upload_router
+from loguru import logger
 
+from app.core.logging import setup_logging
+from app.api.routes.upload import router as upload_router
+from app.api.routes.reports import router as reports_router
+from app.api.routes.dataset import router as dataset_router
+
+setup_logging(os.getenv("LOG_LEVEL", "INFO"))
+logger.info("Aplicação iniciada")
 
 app = FastAPI(
     title="Hanami Analytics API",
@@ -10,6 +18,8 @@ app = FastAPI(
 )
 
 app.include_router(upload_router)
+app.include_router(reports_router)
+app.include_router(dataset_router)
 
 @app.get("/health")
 def health():

@@ -28,8 +28,15 @@ TEXT_COLUMNS = [
 ]
 
 NUMERIC_COLUMNS = [
-    "valor_final",
-    "idade_cliente",
+   "valor_final",
+   "idade_cliente",
+   "subtotal",
+   "desconto_percent",
+   "preco_unitario",
+   "quantidade",
+   "margem_lucro",
+   "renda_estimada",
+   "tempo_entrega_dias", 
 ]
 
 DATE_COLUMNS = [
@@ -73,17 +80,20 @@ def read_file_to_dataframe(file_path: str | Path) -> pd.DataFrame:
 
     # Conversão de tipos: numéricos
     for col in NUMERIC_COLUMNS:
-        df = coerce_numeric(df, col)
+        if col in df.columns:
+            df = coerce_numeric(df, col)
 
     # Conversão de tipos: datas
     for col in DATE_COLUMNS:
-        df = coerce_datetime(df, col)
+        if col in df.columns:
+            df = coerce_datetime(df, col)
 
     # Depois das conversões, removemos linhas que ficaram inválidas nas críticas
     df = df.dropna(subset=CRITICAL_COLUMNS)
 
     # Padronização de texto
     for col in TEXT_COLUMNS:
-        df[col] = normalize_text(df[col])
+        if col in df.columns:
+            df[col] = normalize_text(df[col])
 
     return df

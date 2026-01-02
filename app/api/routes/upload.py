@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from loguru import logger
 from pathlib import Path
 from uuid import uuid4
 
@@ -21,12 +22,14 @@ ALLOWED_EXTENSIONS = {".csv", ".xlsx", ".xls"}
 @router.post("/upload")
 async def upload_file(file: UploadFile = File(None)):
     if file is None:
+        logger.error("Upload falhou: nenhum arquivo foi enviado.")
         raise HTTPException(status_code=400, detail="Nenhum arquivo foi enviado.") # 400 nenhum arquivo enviado
 
     filename = file.filename or ""
     suffix = Path(filename).suffix.lower()
 
     if suffix not in ALLOWED_EXTENSIONS:
+        logger.error(f"Upload falhou: formato inválido. arquivo={filename} ext={suffix}")
         raise HTTPException(
             status_code=422, # 422 arquivo inválido e o tipo
             detail=f"Formato inválido. Envie um arquivo CSV ou XLSX. Recebido: {suffix or 'sem extensão'}",
@@ -43,17 +46,21 @@ async def upload_file(file: UploadFile = File(None)):
         content = await file.read()
         saved_path.write_bytes(content)
     except Exception as e:
+        logger.error(f"Upload falhou ao salvar arquivo. arquivo={filename} erro={str(e)}")
         raise HTTPException(status_code=500, detail=f"Falha ao salvar o arquivo. Detalhe: {str(e)}")
 
     # parse + valida + limpa
     try:
         df = read_file_to_dataframe(saved_path)
     except DataValidationError as e:
+        logger.error(f"Upload falhou na validação/processamento. arquivo={filename} erro={str(e)}")
         raise HTTPException(status_code=422, detail=str(e)) # 422: inválido (colunas faltando, leitura falhou, etc.)
 
     # guarda em memória para próximos endpoints
     import app.core.storage as storage
     storage.CURRENT_DATASET = InMemoryDataset(df=df, filename=filename, uploaded_at=datetime.utcnow())
+
+    logger.info(f"Upload bem-sucedido. arquivo={filename} linhas_processadas={len(df)}")
 
     return JSONResponse(
         status_code=200,
