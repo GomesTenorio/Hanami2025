@@ -29,22 +29,25 @@ Métricas financeiras consistentes com o dataset:
 
 - receita_liquida: soma(valor_final) (já após descontos)
 - lucro_bruto: soma(valor_final * margem_lucro/100)
+- custo_total: receita_liquida - lucro_bruto
 
-Observação: margem_lucro é percentual (15-60).
+Observação: margem_lucro é percentual e o custo_total é estimado via marge_lucro
 """
 
 def calculate_financial_metrics(df: pd.DataFrame) -> dict:
 
     if df is None or df.empty:
-        return {"receita_liquida": 0.0, "lucro_bruto": 0.0}
+        return {"receita_liquida": 0.0, "lucro_bruto": 0.0, "custo_total": 0.0}
 
     receita_liquida = float(df["valor_final"].fillna(0).sum())
 
-    # margem_lucro vem como percentual. Converte para decimal.
     margem = pd.to_numeric(df["margem_lucro"], errors="coerce").fillna(0) / 100.0
     lucro_bruto = float((df["valor_final"].fillna(0) * margem).sum())
+
+    custo_total = float(receita_liquida - lucro_bruto)
 
     return {
         "receita_liquida": receita_liquida,
         "lucro_bruto": lucro_bruto,
+        "custo_total": custo_total,
     }
