@@ -21,7 +21,13 @@ app.include_router(upload_router)
 app.include_router(reports_router)
 app.include_router(dataset_router)
 
-@app.get("/health")
-def health():
-    return {"status": "ok"}
+@app.get("/")
+def root():
+    return {
+        "message": "Hanami Analytics API está no ar.",
+        "docs": "/docs",
+        "health": "/health",
+        "upload": "/upload",
+        "dataset_status": "/dataset/status",
+    }
 
