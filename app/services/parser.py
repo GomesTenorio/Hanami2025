@@ -25,6 +25,15 @@ CRITICAL_COLUMNS = [
 
 TEXT_COLUMNS = [
     "canal_venda",
+    "forma_pagamento",
+    "regiao",
+    "status_entrega",
+    "genero_cliente",
+    "cidade_cliente",
+    "estado_cliente",
+    "categoria",
+    "marca",
+    "nome_produto",
 ]
 
 NUMERIC_COLUMNS = [
