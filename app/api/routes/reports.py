@@ -2,10 +2,15 @@ from fastapi import Query
 from loguru import logger
 import app.core.storage as storage
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
+from io import BytesIO
+import json
 
 from app.services.calculations import calculate_sales_metrics, calculate_financial_metrics
 from app.services.product_analysis import product_analysis
 from app.services.demographics_region import regional_metrics, customer_profile_as_object
+from app.services.report_builder import build_report_dict
+from app.services.report_export import export_report_pdf_bytes, version_export_file
 
 router = APIRouter(tags=["reports"])
 
@@ -85,3 +90,35 @@ def customer_profile():
         logger.error(f"Customer profile falhou. erro={str(e)}")
         raise HTTPException(status_code=422, detail=str(e))
 
+@router.get("/reports/download")
+def download_report(format: str = Query(default="json")):
+    fmt = (format or "").strip().lower()
+
+    if fmt not in ["json", "pdf"]:
+        raise HTTPException(status_code=400, detail="Formato inválido. Use format=json ou format=pdf.")
+
+    # Gera JSON
+    if fmt == "json":
+        report_dict = build_report_dict()
+        content = json.dumps(report_dict, ensure_ascii=False, indent=2).encode("utf-8")
+
+        # versiona artefato
+        version_export_file(content, "json")
+
+        return StreamingResponse(
+            BytesIO(content),
+            media_type="application/json",
+            headers={"Content-Disposition": "attachment; filename=report.json"},
+        )
+
+    # Gera PDF
+    pdf_bytes = export_report_pdf_bytes()
+
+    # versiona artefato
+    version_export_file(pdf_bytes, "pdf")
+
+    return StreamingResponse(
+        BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": "attachment; filename=report.pdf"},
+    )
