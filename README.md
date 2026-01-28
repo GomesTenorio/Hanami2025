@@ -2,7 +2,8 @@
 
 # CSV/XLSX Analytics API
 
-API para processamento de arquivos CSV/XLSX e geração de relatórios analíticos.
+API para processamento de arquivos CSV/XLSX e geração de relatórios analíticos em JSON e PDF.
+A API é backend-only, utilizando o Swagger UI como interface interativa para consumo e testes.
 
 **Swagger UI:** http://127.0.0.1:8000/docs
 
@@ -17,6 +18,15 @@ API para processamento de arquivos CSV/XLSX e geração de relatórios analític
 5. Módulo de Cálculos (Finanças e Vendas)
 6. Endpoints de Vendas e Produtos
 7. Endpoint de Métricas Financeiras
+
+## Sprint 2
+
+8. Cálculos demográficos e regionais
+9. Endpoints de clientes e região
+10. Exportação de relatórios (JSON / PDF)
+11. Documentação completa via Swagger/OpenAPI
+12. Implementação de Filtros Dinâmicos (Opcional)
+13. Preparação para Deploy com Docker (Opcional)
 
 **Observações:**
 
@@ -58,13 +68,18 @@ Saída: Uvicorn running on http://127.0.0.1:8000
 
 ## Fluxo básico da API
 
-1. POST /upload: Upload do arquivo
+1. POST /upload: Upload do arquivo/dataset
 2. Relatórios disponíveis:
-   - GET /reports/sales-summary
-   - GET /reports/financial-metrics
-   - GET /reports/product-analysis
-3. Verificar status do dataset
-   - GET /dataset/status
+   - Resumo de vendas
+   - Metricas financeiras
+   - Analise de produtos
+   - Performance por região
+   - Perfil dos clientes
+3. Exportar resultados
+   - JSON
+   - PDF
+4. Verificar status do dataset
+   - Status do Dataset carregado
 
 **Logs são exibidos no console e gravados em logs/app.log** - INFO: uploads bem-sucedidos - ERROR: erros de validação/processamento
 
@@ -72,6 +87,7 @@ Saída: Uvicorn running on http://127.0.0.1:8000
 
 ```bash
 - total_vendas = soma de valor_final
+- numero_transacoes = total de registros
 - media_por_transacao = total_vendas / número de transações
 - receita_liquida = soma de valor_final
 - lucro_bruto = soma de (valor_final * margem_lucro / 100)

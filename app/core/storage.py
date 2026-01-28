@@ -1,17 +1,25 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
-from typing import Optional
+from datetime import datetime, timezone
 import pandas as pd
 
 
 @dataclass
-class InMemoryDataset:
+class DatasetState:
     df: pd.DataFrame
     filename: str
     uploaded_at: datetime
 
 
-# armazenamento simples em memória (MVP)
-CURRENT_DATASET: Optional[InMemoryDataset] = None
+CURRENT_DATASET: DatasetState | None = None
+
+
+def set_dataset(df: pd.DataFrame, filename: str) -> None:
+    global CURRENT_DATASET
+    CURRENT_DATASET = DatasetState(
+        df=df,
+        filename=filename,
+        uploaded_at=datetime.now(timezone.utc),
+    )
+

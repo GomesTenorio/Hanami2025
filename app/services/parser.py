@@ -3,6 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 import pandas as pd
 
+from fastapi import UploadFile
+import tempfile
+
+
 from app.core.errors import DataValidationError
 from app.utils.validators import (
     require_columns,
@@ -106,3 +110,31 @@ def read_file_to_dataframe(file_path: str | Path) -> pd.DataFrame:
             df[col] = normalize_text(df[col])
 
     return df
+
+async def parse_upload_to_dataframe(file: UploadFile) -> pd.DataFrame:
+    """
+    Recebe UploadFile (FastAPI), salva temporariamente e reutiliza read_file_to_dataframe
+    para validar e padronizar.
+    """
+    suffix = Path(file.filename).suffix.lower()
+
+    if suffix not in [".csv", ".xlsx", ".xls"]:
+        raise DataValidationError("Formato inválido. Envie um arquivo .csv ou .xlsx")
+
+    # Salva temporariamente para reutilizar a mesma rotina de validação
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        tmp_path = Path(tmp.name)
+        content = await file.read()
+        tmp.write(content)
+
+    try:
+        df = read_file_to_dataframe(tmp_path)
+        return df
+    finally:
+        # remove o arquivo temporário
+        try:
+            tmp_path.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+
