@@ -6,6 +6,7 @@ from io import BytesIO
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from loguru import logger
+from datetime import date
 
 import app.core.storage as storage
 
@@ -14,6 +15,7 @@ from app.services.product_analysis import product_analysis
 from app.services.demographics_region import regional_metrics, customer_profile_as_object
 from app.services.report_builder import build_report_dict
 from app.services.report_export import export_report_pdf_bytes, version_export_file
+from app.utils.filters import parse_yyyy_mm_dd, filter_by_date_range, filter_by_estado
 
 from app.docs.examples import (
     SALES_SUMMARY_EXAMPLE,
@@ -30,16 +32,48 @@ router = APIRouter(tags=["reports"])
 @router.get(
     "/reports/sales-summary",
     summary="Resumo de vendas",
-    description="Retorna métricas consolidadas de vendas: total de vendas, número de transações e média por transação.",
+    description=(
+        "Retorna métricas consolidadas de vendas: total de vendas, número de transações e média por transação. "
+        "Filtros opcionais: start_date e end_date (YYYY-MM-DD) para filtrar por período."
+    ),
     responses={
         200: {"content": {"application/json": {"example": SALES_SUMMARY_EXAMPLE}}},
         400: {"description": "Nenhum dataset carregado. Faça upload em /upload."},
+        422: {"description": "Parâmetros inválidos (ex: data fora do formato YYYY-MM-DD)."},
     },
 )
-def sales_summary():
+def sales_summary(
+    start_date: str | None = Query(
+        default=None,
+        description="Data inicial (inclusiva) no formato YYYY-MM-DD",
+        examples=["2023-01-01"],
+    ),
+    end_date: str | None = Query(
+        default=None,
+        description="Data final (inclusiva) no formato YYYY-MM-DD",
+        examples=["2023-12-31"],
+    ),
+):
     if storage.CURRENT_DATASET is None:
         raise HTTPException(status_code=400, detail="Nenhum dataset carregado. Faça upload em /upload.")
-    return calculate_sales_metrics(storage.CURRENT_DATASET.df)
+
+    df = storage.CURRENT_DATASET.df
+
+    # Parse das datas
+    try:
+        s: date | None = parse_yyyy_mm_dd(start_date) if start_date else None
+        e: date | None = parse_yyyy_mm_dd(end_date) if end_date else None
+    except ValueError as ve:
+        raise HTTPException(status_code=422, detail=str(ve))
+
+    # Validação de intervalo
+    if s and e and s > e:
+        raise HTTPException(status_code=422, detail="Intervalo inválido: start_date não pode ser maior que end_date.")
+
+    # Filtra por data_venda (assumindo que seu parser já converteu para datetime)
+    filtered = filter_by_date_range(df, date_col="data_venda", start=s, end=e)
+
+    return calculate_sales_metrics(filtered)
 
 
 @router.get(
@@ -102,21 +136,32 @@ def report_product_analysis(
 @router.get(
     "/reports/regional-performance",
     summary="Performance por região",
-    description="Retorna um JSON com cada região como chave e suas métricas (vendas, transações e média) como valor.",
+    description=(
+        "Retorna um JSON com cada região como chave e suas métricas (vendas, transações e média) como valor. "
+        "Filtro opcional: estado=UF para filtrar apenas clientes de um estado (ex: SP)."
+    ),
     responses={
         200: {"content": {"application/json": {"example": REGIONAL_PERFORMANCE_EXAMPLE}}},
         400: {"description": "Nenhum dataset carregado. Faça upload em /upload."},
         422: {"description": "Arquivo inválido (ex: colunas ausentes)."},
     },
 )
-def regional_performance():
+def regional_performance(
+    estado: str | None = Query(
+        default=None,
+        description="Filtra por UF do cliente (ex: SP, RJ). Se não informado, retorna completo.",
+        enum=["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"],
+    ),
+):
     if storage.CURRENT_DATASET is None:
         raise HTTPException(status_code=400, detail="Nenhum dataset carregado. Faça upload em /upload.")
 
     df = storage.CURRENT_DATASET.df
 
     try:
-        metrics_list = regional_metrics(df)
+        filtered = filter_by_estado(df, estado)
+        metrics_list = regional_metrics(filtered)
+
         result = {
             item["regiao"]: {
                 "total_vendas": float(item["total_vendas"]),
@@ -126,8 +171,9 @@ def regional_performance():
             for item in metrics_list
         }
 
-        logger.info(f"Regional performance gerado. regioes={len(result)}")
+        logger.info(f"Regional performance gerado. estado={estado or 'ALL'} regioes={len(result)}")
         return result
+
     except ValueError as e:
         logger.error(f"Regional performance falhou. erro={str(e)}")
         raise HTTPException(status_code=422, detail=str(e))
